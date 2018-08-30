@@ -1,0 +1,31 @@
+﻿<Window x:Class="Wallpaper.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Wallpaper"
+        mc:Ignorable="d"
+        Title="Settings" Height="180" Width="400">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"></RowDefinition>
+            <RowDefinition Height="45"></RowDefinition>
+        </Grid.RowDefinitions>
+        <Grid Grid.Row="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="45"></RowDefinition>
+                <RowDefinition Height="45"></RowDefinition>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="120"></ColumnDefinition>
+                <ColumnDefinition Width="*"></ColumnDefinition>
+            </Grid.ColumnDefinitions>
+            <Label Grid.Row="0" Grid.Column="0" Padding="7" Margin="5" Content="Base folder path:"></Label>
+            <Label Grid.Row="1" Grid.Column="0" Padding="7" Margin="5" Content="App data path:"></Label>
+            <TextBox Grid.Row="0" Grid.Column="1" Padding="7" Margin="5" Name="TextBoxBasePath" ></TextBox>
+            <TextBox Grid.Row="1" Grid.Column="1" Padding="7" Margin="5" Name="TextBoxAppDataPath"></TextBox>
+        </Grid>
+        <Button Grid.Row="1" Margin="5" Content="Save" Click="Button_Click"></Button>
+    </Grid>
+    
+</Window>
