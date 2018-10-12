@@ -46,17 +46,5 @@ namespace Wallpaper.Properties {
                 this["BasePath"] = value;
             }
         }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("")]
-        public string AppDataPath {
-            get {
-                return ((string)(this["AppDataPath"]));
-            }
-            set {
-                this["AppDataPath"] = value;
-            }
-        }
     }
 }

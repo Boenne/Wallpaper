@@ -21,9 +21,7 @@
                 <ColumnDefinition Width="*"></ColumnDefinition>
             </Grid.ColumnDefinitions>
             <Label Grid.Row="0" Grid.Column="0" Padding="7" Margin="5" Content="Base folder path:"></Label>
-            <Label Grid.Row="1" Grid.Column="0" Padding="7" Margin="5" Content="App data path:"></Label>
             <TextBox Grid.Row="0" Grid.Column="1" Padding="7" Margin="5" Name="TextBoxBasePath" ></TextBox>
-            <TextBox Grid.Row="1" Grid.Column="1" Padding="7" Margin="5" Name="TextBoxAppDataPath"></TextBox>
         </Grid>
         <Button Grid.Row="1" Margin="5" Content="Save" Click="Button_Click"></Button>
     </Grid>

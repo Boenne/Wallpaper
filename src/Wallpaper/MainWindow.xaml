@@ -4,14 +4,16 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="Wallpaper" Height="315" Width="300" Closed="Window_Closed">
+        Title="Wallpaper" Height="540" Width="300" Closed="Window_Closed">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="45" />
             <RowDefinition Height="45" />
             <RowDefinition Height="45" />
             <RowDefinition Height="45" />
+            <RowDefinition Height="45" />
             <RowDefinition Height="90" />
+            <RowDefinition Height="183" />
         </Grid.RowDefinitions>
         <Grid Grid.Row="0">
             <Grid.ColumnDefinitions>
@@ -26,7 +28,9 @@
         <Button Grid.Row="1" Margin="5" Content="_Start" Click="Button_Start_Click" />
         <Button Grid.Row="2" Margin="5" Content="_Pause" Click="Button_Pause_Click" Name="ButtonPause"/>
         <Button Grid.Row="3" Margin="5" Content="_Restart" Click="Button_Restart_Click" />
-        <ListBox Grid.Row="4" Margin="5" Name="Bookmarks" KeyUp="Bookmarks_OnKeyUp"
+        <CheckBox Grid.Row="4" Margin="15" Content="Include subfolders" Name="CheckBoxIncludeSubFolders" IsChecked="False"></CheckBox>
+        <ListBox Grid.Row="5" Margin="5" Name="Bookmarks" KeyUp="Bookmarks_OnKeyUp"
                  SelectionChanged="Bookmarks_OnSelectionChanged" />
+        <Image Grid.Row="6" Margin="5" Name="ImagePreview"></Image>
     </Grid>
 </Window>

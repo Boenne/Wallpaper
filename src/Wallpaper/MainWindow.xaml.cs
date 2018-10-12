@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
@@ -9,6 +10,8 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using Wallpaper.Properties;
 using Image = System.Drawing.Image;
 
@@ -17,10 +20,13 @@ namespace Wallpaper
     public partial class MainWindow : Window
     {
         private CancellationTokenSource cancellationTokenSource;
-        private DirectoryInfo directoryInfo;
-        private string mainDir, tempFolderPath, tempPath;
+        private DirectoryInfo mainDirectory, tempDirectoryInfo;
+        private string mainDir;
         private bool pause;
         private Task task;
+        private static FileStream bitmapStreamSource;
+        private string tempFolderName = "wallpaper_temps";
+        private List<FileInfo> images;
 
         public MainWindow()
         {
@@ -32,8 +38,8 @@ namespace Wallpaper
 
         private void Window_Closed(object sender, EventArgs e)
         {
-            cancellationTokenSource?.Cancel();
-            File.Delete(tempPath);
+            CancelCurrentTask();
+            DeleteTempFolder();
         }
 
         private void Button_Start_Click(object sender, RoutedEventArgs e)
@@ -59,8 +65,8 @@ namespace Wallpaper
             var dir = new DirectoryInfo(TextBoxDirectory.Text);
             if (!dir.Exists) return;
             var bookmarks = Settings.Default.Bookmarks;
-            if (bookmarks.Contains(directoryInfo.FullName)) return;
-            bookmarks += $",{directoryInfo.FullName}";
+            if (bookmarks.Contains(dir.FullName)) return;
+            bookmarks += $",{dir.FullName}";
             Settings.Default.Bookmarks = bookmarks;
             Settings.Default.Save();
             SetBookmarks();
@@ -92,17 +98,19 @@ namespace Wallpaper
         public void UpdateSettings()
         {
             mainDir = Settings.Default.BasePath;
-            tempFolderPath = Settings.Default.AppDataPath;
-            tempPath = $"{tempFolderPath}/temp.jpg";
         }
 
-        private void CreateImage(string path)
+        private string CreateImage(string path)
         {
             try
             {
                 int width = 2560, height = 1440;
                 var image = Image.FromFile(path);
                 var rightImageRatio = image.Width / (double) image.Height;
+
+                var fileInfo = new FileInfo(path);
+                var tempFile = $"{tempDirectoryInfo.FullName}/" + fileInfo.Name;
+                if (File.Exists(tempFile)) return tempFile;
 
                 using (image)
                 {
@@ -137,12 +145,14 @@ namespace Wallpaper
                                 GraphicsUnit.Pixel);
                             canvas.Save();
                         }
-                        bitmap.Save(tempPath, ImageFormat.Jpeg);
+                        bitmap.Save(tempFile, ImageFormat.Jpeg);
+                        return tempFile;
                     }
                 }
             }
-            catch
+            catch (Exception e)
             {
+                return null;
             }
         }
 
@@ -154,7 +164,7 @@ namespace Wallpaper
                 Bookmarks.ItemsSource = new string[0];
                 return;
             }
-            var bookmarks = bookmarkString.Split(',').Where(x => !string.IsNullOrWhiteSpace(x));
+            var bookmarks = bookmarkString.Split(new[] {","}, StringSplitOptions.RemoveEmptyEntries);
             Bookmarks.ItemsSource = bookmarks;
         }
 
@@ -162,37 +172,78 @@ namespace Wallpaper
         {
             SetDirectory();
             cancellationTokenSource = new CancellationTokenSource();
-
+            var includeSubFolders = CheckBoxIncludeSubFolders.IsChecked.HasValue &&
+                                    CheckBoxIncludeSubFolders.IsChecked.Value;
             task = Task.Run(async () =>
             {
-                if (!directoryInfo.Exists) return;
-                var files = directoryInfo.GetFiles();
-                if (!files.Any()) return;
-                files.Shuffle();
-                var i = 0;
+                if (!mainDirectory.Exists) return;
+                images = mainDirectory.GetImageFiles();
+                if (includeSubFolders)
+                    GetFilesInSubFolders(mainDirectory, images);
+
+                if (!images.Any()) return;
+
+                images.Shuffle();
+                var files = images.Select(x => x.FullName).ToList();
+                var i = 1;
+                var file = GetFilePath(files, 0);
+
                 while (true)
                 {
                     if (cancellationTokenSource.Token.IsCancellationRequested)
                         break;
                     if (!pause)
                     {
-                        if (i >= files.Length) i = 0;
-                        var file = files[i];
+                        if (i >= files.Count) i = 0;
+                        WallpaperManager.Set(file, WallpaperManager.Style.Centered);
 
-                        var fileName = file.FullName;
-                        var bitmap = new Bitmap(fileName);
-
-                        if (bitmap.Width < bitmap.Height)
-                        {
-                            CreateImage(fileName);
-                            fileName = tempPath;
-                        }
-                        WallpaperManager.Set(fileName, WallpaperManager.Style.Centered);
+                        file = GetFilePath(files, i);
+                        SetPreviewImage(() => { SetPreviewImage(file); });
                         i++;
                     }
                     await WaitSeconds(10);
                 }
             }, cancellationTokenSource.Token);
+        }
+
+        private string GetFilePath(IReadOnlyList<string> files, int i)
+        {
+            var file = files[i];
+
+            using (var bitmap = new Bitmap(file))
+            {
+                if (bitmap.Width >= bitmap.Height) return file;
+
+                file = CreateImage(file);
+            }
+            return file;
+        }
+
+        private void SetPreviewImage(Action action)
+        {
+            Dispatcher.BeginInvoke(DispatcherPriority.Background, action);
+        }
+
+        private void SetPreviewImage(string path)
+        {
+            try
+            {
+                ClearBitmapStream();
+
+                var bitmap = new BitmapImage();
+                bitmapStreamSource = File.OpenRead(path);
+                bitmap.BeginInit();
+                bitmap.CacheOption = BitmapCacheOption.None;
+                bitmap.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
+                bitmap.StreamSource = bitmapStreamSource;
+                bitmap.EndInit();
+                ImagePreview.Source = bitmap;
+            }
+            catch
+            {
+                //Sometimes there's a problem with the meta data of the image
+                //so just fail silently
+            }
         }
 
         private async Task WaitSeconds(int seconds)
@@ -210,17 +261,20 @@ namespace Wallpaper
         private void SetDirectory()
         {
             var folderName = TextBoxDirectory.Text;
-            directoryInfo = Directory.Exists(folderName)
+            mainDirectory = Directory.Exists(folderName)
                 ? new DirectoryInfo(folderName)
                 : new DirectoryInfo($"{mainDir}/{folderName}");
+
+            tempDirectoryInfo = new DirectoryInfo($"{mainDirectory.FullName}/{tempFolderName}");
+            
+            if (tempDirectoryInfo.Exists) return;
+            tempDirectoryInfo.Create();
         }
 
         private void CancelCurrentTask()
         {
-            if (File.Exists(tempPath))
-                File.Delete(tempPath);
-
             if (cancellationTokenSource == null) return;
+
             cancellationTokenSource.Cancel();
             try
             {
@@ -231,8 +285,36 @@ namespace Wallpaper
                 cancellationTokenSource.Dispose();
                 cancellationTokenSource = null;
                 pause = false;
-                ButtonPause.Content = pause ? "Resume" : "_Pause";
+                ButtonPause.Content = "_Pause";
+
+                ClearBitmapStream();
             }
+        }
+
+        private void ClearBitmapStream()
+        {
+            if (bitmapStreamSource == null) return;
+            bitmapStreamSource.Close();
+            bitmapStreamSource.Dispose();
+            bitmapStreamSource = null;
+            GC.Collect();
+        }
+
+        private void GetFilesInSubFolders(DirectoryInfo dir, List<FileInfo> result)
+        {
+            var subDirectories = dir.GetDirectories().Where(x => x.Name != tempFolderName).ToList();
+            if (!subDirectories.Any()) return;
+            foreach (var subDirectory in subDirectories)
+            {
+                result.AddRange(subDirectory.GetImageFiles());
+                GetFilesInSubFolders(subDirectory, result);
+            }
+        }
+
+        private void DeleteTempFolder()
+        {
+            if (tempDirectoryInfo != null && Directory.Exists(tempDirectoryInfo.FullName))
+                Directory.Delete(tempDirectoryInfo.FullName, true);
         }
     }
 }
