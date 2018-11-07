@@ -27,6 +27,7 @@ namespace Wallpaper
         private static FileStream bitmapStreamSource;
         private string tempFolderName = "wallpaper_temps";
         private List<FileInfo> images;
+        private DispatcherOperation imagePreviewTask;
 
         public MainWindow()
         {
@@ -150,7 +151,7 @@ namespace Wallpaper
                     }
                 }
             }
-            catch (Exception e)
+            catch
             {
                 return null;
             }
@@ -221,7 +222,7 @@ namespace Wallpaper
 
         private void SetPreviewImage(Action action)
         {
-            Dispatcher.BeginInvoke(DispatcherPriority.Background, action);
+            imagePreviewTask = Dispatcher.BeginInvoke(DispatcherPriority.Background, action);
         }
 
         private void SetPreviewImage(string path)
@@ -279,6 +280,7 @@ namespace Wallpaper
             try
             {
                 task.Wait();
+                imagePreviewTask?.Wait();
             }
             finally
             {
