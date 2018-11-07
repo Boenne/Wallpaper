@@ -8,7 +8,7 @@ namespace Wallpaper
     {
         public static List<FileInfo> GetImageFiles(this DirectoryInfo directoryInfo)
         {
-            return directoryInfo.GetFiles().Where(x => x.FullName.EndsWith(".jpg") || x.FullName.EndsWith(".png")).ToList();
+            return directoryInfo.GetFiles().Where(x => x.FullName.EndsWith(".jpg") || x.FullName.EndsWith(".jpeg") || x.FullName.EndsWith(".png")).ToList();
         }
     }
 }
