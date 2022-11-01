@@ -45,13 +45,11 @@ namespace Wallpaper
 
         private void Button_Start_Click(object sender, RoutedEventArgs e)
         {
-            CancelCurrentTask();
             Start();
         }
 
         private void Button_Restart_Click(object sender, RoutedEventArgs e)
         {
-            CancelCurrentTask();
             Start();
         }
 
@@ -87,7 +85,6 @@ namespace Wallpaper
         {
             if (string.IsNullOrWhiteSpace(Bookmarks.SelectedItem?.ToString())) return;
             TextBoxDirectory.Text = Bookmarks.SelectedItem.ToString();
-            CancelCurrentTask();
             Start();
         }
 
@@ -171,6 +168,7 @@ namespace Wallpaper
 
         private void Start()
         {
+            CancelCurrentTask();
             SetDirectory();
             cancellationTokenSource = new CancellationTokenSource();
             var includeSubFolders = CheckBoxIncludeSubFolders.IsChecked.HasValue &&
@@ -210,19 +208,33 @@ namespace Wallpaper
         private string GetFilePath(IReadOnlyList<string> files, int i)
         {
             var file = files[i];
-
-            using (var bitmap = new Bitmap(file))
+            try
             {
-                if (bitmap.Width >= bitmap.Height) return file;
+                using (var bitmap = new Bitmap(file))
+                {
+                    if (bitmap.Width >= bitmap.Height) return file;
 
-                file = CreateImage(file);
+                    file = CreateImage(file);
+                }
             }
+            catch (Exception e)
+            {
+                return file;
+            }
+
             return file;
         }
 
         private void SetPreviewImage(Action action)
         {
-            imagePreviewTask = Dispatcher.BeginInvoke(DispatcherPriority.Background, action);
+            try
+            {
+                imagePreviewTask = Dispatcher.BeginInvoke(DispatcherPriority.Background, action);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
         }
 
         private void SetPreviewImage(string path)
@@ -240,8 +252,9 @@ namespace Wallpaper
                 bitmap.EndInit();
                 ImagePreview.Source = bitmap;
             }
-            catch
+            catch(Exception e)
             {
+                Console.WriteLine(e);
                 //Sometimes there's a problem with the meta data of the image
                 //so just fail silently
             }
@@ -265,6 +278,11 @@ namespace Wallpaper
             mainDirectory = Directory.Exists(folderName)
                 ? new DirectoryInfo(folderName)
                 : new DirectoryInfo($"{mainDir}/{folderName}");
+
+            if (tempDirectoryInfo != null && tempDirectoryInfo.Parent?.Parent?.FullName != mainDirectory.Parent?.FullName)
+            {
+                DeleteTempFolder();
+            }
 
             tempDirectoryInfo = new DirectoryInfo($"{mainDirectory.FullName}/{tempFolderName}");
             
